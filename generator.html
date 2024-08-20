@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BDD Gherkin Generator</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container my-5">
+    <header class="mb-4">
+        <h1 class="text-center">BDD Gherkin Generator</h1>
+    </header>
+
+    <div class="mb-4">
+        <label for="userInput" class="form-label">Enter User Story:</label>
+        <input type="text" class="form-control" id="userInput" placeholder="Enter your user story here">
+        <button type="button" class="btn btn-primary mt-3" onclick="call_model()">Generate</button>
+    </div>
+
+    <!-- Spinner element, initially hidden using d-none -->
+    <div id="loadingSpinner" class="d-none justify-content-center my-4">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <div>
+        <h4>Generated Output:</h4>
+        <p id="outputText" class="border p-3 bg-light">The output will be displayed here...</p>
+    </div>
+</div>
+
+<!-- Bootstrap 5 JS and dependencies -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    function call_model() {
+        // Show the spinner by removing d-none and adding d-flex
+        const spinner = document.getElementById("loadingSpinner");
+        spinner.classList.remove("d-none");
+        spinner.classList.add("d-flex");
+
+        let user_story = document.getElementById("userInput").value;
+
+        fetch("/predict", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ user_story: user_story }),
+        })
+        .then((response) => {
+            if (!response.ok) {
+                throw new Error("Network response was not ok");
+            }
+            return response.json();
+        })
+        .then((data) => {
+            // Hide the spinner by adding d-none and removing d-flex
+            spinner.classList.add("d-none");
+            spinner.classList.remove("d-flex");
+
+            console.log("Server response:", data);
+
+            const stringToRemove = `Please provide the following:
+
+            Scenario: Validate that the user can log in successfully.
+            Given: The user launches and logs into the e-commerce application with <username> and <password>
+            When: The user navigates to the account page.
+            And: The user accesses the account dashboard.
+            Then: The user should be able to view account details.`;
+
+            // Create a regular expression to handle new lines and whitespace
+            const regex = new RegExp(stringToRemove.replace(/[\.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+'), 'g');
+
+            // Replace the string with an empty string
+            data['user_story'] = data['user_story'].replace(regex, '').trim();
+
+            data['user_story'] = data['user_story'].replace("[INST]", "");
+            data['user_story'] = data['user_story'].replace("[/INST]", "");
+
+            // Replace newlines with <br> tags for HTML display
+            let formattedText = data['user_story'].replace(/(?:\r\n|\r|\n)/g, '<br>');
+
+            // Display the formatted text in the output paragraph
+            document.getElementById("outputText").innerHTML = formattedText;
+        })
+        .catch((error) => {
+            // Hide the spinner in case of error
+            spinner.classList.add("d-none");
+            spinner.classList.remove("d-flex");
+
+            console.error("Error:", error);
+        });
+
+        // Prevent the form from submitting (since we're handling it with JavaScript)
+        return user_story;
+    }
+</script>
+
+</body>
+</html>
